@@ -1,135 +1,103 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <stdlib.h>
+#include <stdio.h>
 
-// Define shared variables, semaphores, and data structures
-int buffer_size;
-int upper_limit;
-int *buffer;
-int producer_counter = 0;
-int consumer_counter = 0;
+/*
+This program provides a possible solution for producer-consumer problem using mutex and semaphore.
+I have used 5 producers and 5 consumers to demonstrate the solution. You can always play with these values.
+*/
+int prodNum, conNum, buffer_size, limit;
 
-sem_t mutex; // Semaphore for mutual exclusion
-sem_t empty; // Semaphore to track empty slots in the buffer
-sem_t full;  // Semaphore to track filled slots in the buffer
+sem_t empty;
+sem_t full;
+int in = 0;
+int out = 0;
+int buffer[];
+pthread_mutex_t mutex;
 
-struct ThreadData {
-    int id;
+void *producer(void *param)
+{   
+    int item;
+    item = rand() % 50; // Produce an random item
+    sem_wait(&empty);
+    pthread_mutex_lock(&mutex);
+    buffer[in] = item;
+    //printf("in = %d item = %d\n",in,item);
+    printf("Producer %d: Insert Item %d at buffer[%d]\n", *((int *)param),buffer[in],in);
+    //in = (in+1)%buffer_size;
+    in++;
+    pthread_mutex_unlock(&mutex);
+    sem_post(&full);
+}
+void *consumer(void *param)
+{   
+    sem_wait(&full);
+    pthread_mutex_lock(&mutex);
+    int item = buffer[out];
+    //printf("out = %d item = %d\n",out,item);
+    printf("Consumer %d: Remove Item %d from buffer [%d]\n",*((int *)param),item, out);
+    //out = (out+1)%buffer_size;
+    out++;
+    pthread_mutex_unlock(&mutex);
+    sem_post(&empty);
+}
+
+struct data {
+    int one;
+    char two;
+    int a[];
 };
 
-// Producer function
-void *producer(void *param) {
-    struct ThreadData *data = (struct ThreadData *)param;
+int main()
+{   
+    printf("Buffer Size: ");
+    scanf("%d", &buffer_size);
+    buffer[buffer_size];
 
-    while (1) {
-        // Generate and produce data
-        int produced_data = producer_counter;
-        producer_counter++;
-        
-        // Wait for an empty slot in the buffer
-        sem_wait(&empty);
-        sem_wait(&mutex);
+    printf("Num of Producers: ");
+    scanf("%d", &prodNum);
 
-        // Place the data into the buffer
-        buffer[consumer_counter % buffer_size] = produced_data;
+    printf("Num of Consumers: ");
+    scanf("%d", &conNum);
 
-        // Print the produced data and consumer ID
-        printf("%d, %d\n", produced_data, data->id);
-        
-        consumer_counter++;
-        
-        sem_post(&mutex);
-        sem_post(&full);
+    printf("Upper Limit: ");
+    scanf("%d", &limit);
+    printf("\n");
 
-        if (produced_data >= upper_limit) {
-            break;
-        }
+    pthread_t pro[prodNum],con[conNum];
+    pthread_mutex_init(&mutex, NULL);
+    sem_init(&empty,0,buffer_size);
+    sem_init(&full,0,0);
+
+    struct data *s1 = (struct data *) malloc(sizeof(struct data));
+    s1->one = 1;
+    s1->two = '2';
+
+    s1->a;
+    for(int i = 0; i < limit; i++) {
+        s1->a[i] = i;
+        //printf("%d\n",i);
     }
 
-    pthread_exit(0);
-}
-
-// Consumer function
-void *consumer(void *param) {
-    struct ThreadData *data = (struct ThreadData *)param;
-
-    while (1) {
-        // Wait for a filled slot in the buffer
-        sem_wait(&full);
-        sem_wait(&mutex);
-
-        // Consume data from the buffer
-        int consumed_data = buffer[consumer_counter % buffer_size];
-
-        // Print the consumed data and consumer ID
-        printf("%d, %d\n", consumed_data, data->id);
-        
-        consumer_counter++;
-
-        sem_post(&mutex);
-        sem_post(&empty);
-
-        if (consumed_data >= upper_limit) {
-            break;
-        }
+    for(int i = 0; i < prodNum; i++) {
+        pthread_create(&pro[i], NULL, (void *)producer, (void *)&s1->a[i]);
+    }
+    for(int i = 0; i < conNum; i++) {
+        pthread_create(&con[i], NULL, (void *)consumer, (void *)&s1->a[i]);
     }
 
-    pthread_exit(0);
-}
-
-int main(int argc, char *argv[]) {
-    if (argc != 5) {
-        printf("Usage: %s <buffer_size> <num_producers> <num_consumers> <upper_limit>\n", argv[0]);
-        return 1;
+    for(int i = 0; i < prodNum; i++) {
+        pthread_join(pro[i], NULL);
+    }
+    for(int i = 0; i < conNum; i++) {
+        pthread_join(con[i], NULL);
     }
 
-    buffer_size = atoi(argv[1]);
-    int num_producers = atoi(argv[2]);
-    int num_consumers = atoi(argv[3]);
-    upper_limit = atoi(argv[4]);
-
-    buffer = (int *)malloc(buffer_size * sizeof(int));
-    struct ThreadData *producer_data = (struct ThreadData *)malloc(num_producers * sizeof(struct ThreadData));
-    struct ThreadData *consumer_data = (struct ThreadData *)malloc(num_consumers * sizeof(struct ThreadData));
-
-    // Initialize semaphores
-    sem_init(&mutex, 0, 1);
-    sem_init(&empty, 0, buffer_size);
-    sem_init(&full, 0, 0);
-
-    pthread_t producer_threads[num_producers];
-    pthread_t consumer_threads[num_consumers];
-
-    // Create producer threads
-    for (int i = 0; i < num_producers; i++) {
-        producer_data[i].id = i;
-        pthread_create(&producer_threads[i], NULL, producer, &producer_data[i]);
-    }
-
-    // Create consumer threads
-    for (int i = 0; i < num_consumers; i++) {
-        consumer_data[i].id = i;
-        pthread_create(&consumer_threads[i], NULL, consumer, &consumer_data[i]);
-    }
-
-    // Join producer threads
-    for (int i = 0; i < num_producers; i++) {
-        pthread_join(producer_threads[i], NULL);
-    }
-
-    // Join consumer threads
-    for (int i = 0; i < num_consumers; i++) {
-        pthread_join(consumer_threads[i], NULL);
-    }
-
-    // Clean up
-    sem_destroy(&mutex);
+    pthread_mutex_destroy(&mutex);
     sem_destroy(&empty);
     sem_destroy(&full);
-    free(buffer);
-    free(producer_data);
-    free(consumer_data);
 
     return 0;
+    
 }
