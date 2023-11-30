@@ -5,13 +5,15 @@
 #include <time.h>
 #include <unistd.h>
 #include <string.h>
+#include <errno.h>
+#include <sys/errno.h>
 
 //int *buffer;
 int prodNum, conNum, buffer_size, limit;
 sem_t *empty;
 sem_t *full;
 int count = 0;
-int buffer[10];
+int buffer[5];
 pthread_mutex_t mutex;
 
 void *producer(void *param)
@@ -20,7 +22,21 @@ void *producer(void *param)
         //make 50 limit
         int item = rand() % 50;
         //printf("%d",count);
-        sem_wait(&empty);
+        //printf(" %d ",sem_wait(&empty));
+        errno=0;
+        int check = sem_wait(&empty);
+        //printf("prod check val = %d\n",check);
+        if (check==0){
+            printf("Full\n");
+        } else if (check > 0){
+            printf("yippe\n");
+        } else if (check < 0) {
+            printf("ERROR\n");
+        } else {
+            printf("BAD NEWS\n");
+        }
+        printf("sem_open() failed.  errno:%d\n", errno);
+
         pthread_mutex_lock(&mutex);
         buffer[count] = item;
         count++;
@@ -37,7 +53,15 @@ void *consumer(void *param)
 {   
     while(1) {
         int item;
-        sem_wait(&full);
+        int check = sem_wait(&full);
+        //printf("con check val = %d\n",check);
+        if (check == 0){
+            printf("Full\n");
+        } else if (check > 0){
+            printf("yippe\n");
+        } else {
+            printf("ERROR");
+        }
         pthread_mutex_lock(&mutex);
         item = buffer[count - 1];
         count--;
@@ -62,7 +86,7 @@ int main(int argc, char *argv[])
     srand(time(NULL));
 
     if (argc == 5) {
-        printf("worked %d %d %d %d",atoi(argv[1]),atoi(argv[2]),atoi(argv[3]),atoi(argv[4]));
+        //printf("worked %d %d %d %d\n",atoi(argv[1]),atoi(argv[2]),atoi(argv[3]),atoi(argv[4]));
         buffer_size = atoi(argv[1]);
         //buffer = (int *)malloc(buffer_size * sizeof(int)); // Allocate memory for the buffer;
         prodNum = atoi(argv[2]);
