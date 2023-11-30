@@ -1,0 +1,5 @@
+Elapsed time: 0.48 seconds
+Buffer size: 20
+Number of producers: 1
+Number of consumers: 1
+Upper limit: 50
