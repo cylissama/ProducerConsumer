@@ -8,8 +8,8 @@
 
 //int *buffer;
 int prodNum, conNum, buffer_size, limit;
-sem_t empty;
-sem_t full;
+sem_t *empty;
+sem_t *full;
 int count = 0;
 int buffer[10];
 pthread_mutex_t mutex;
@@ -19,7 +19,7 @@ void *producer(void *param)
     while(1) {
         //make 50 limit
         int item = rand() % 50;
-        printf("%d",count);
+        //printf("%d",count);
         sem_wait(&empty);
         pthread_mutex_lock(&mutex);
         buffer[count] = item;
@@ -61,26 +61,29 @@ int main(int argc, char *argv[])
 {   
     srand(time(NULL));
 
-    if (argc == 3) {
-        buffer_size = argv[0];
-        printf("worked %d %d %d %d",argv[0],argv[1],argv[2],argv[3]);
+    if (argc == 5) {
+        printf("worked %d %d %d %d",atoi(argv[1]),atoi(argv[2]),atoi(argv[3]),atoi(argv[4]));
+        buffer_size = atoi(argv[1]);
+        //buffer = (int *)malloc(buffer_size * sizeof(int)); // Allocate memory for the buffer;
+        prodNum = atoi(argv[2]);
+        conNum = atoi(argv[3]);
+        limit = atoi(argv[4]);
+    } else {
+        printf("Buffer Size: ");
+        scanf("%d", &buffer_size);
+        //buffer = (int *)malloc(buffer_size * sizeof(int)); // Allocate memory for the buffer
+
+        printf("Num of Producers: ");
+        scanf("%d", &prodNum);
+
+        printf("Num of Consumers: ");
+        scanf("%d", &conNum);
+
+        //currently does nothing
+        printf("Upper Limit: ");
+        scanf("%d", &limit);
+        printf("\n");
     }
-
-    // printf("Buffer Size: ");
-    // scanf("%d", &buffer_size);
-    //buffer = (int *)malloc(buffer_size * sizeof(int)); // Allocate memory for the buffer
-
-    printf("Num of Producers: ");
-    scanf("%d", &prodNum);
-
-    printf("Num of Consumers: ");
-    scanf("%d", &conNum);
-
-    //currently does nothing
-    printf("Upper Limit: ");
-    scanf("%d", &limit);
-    printf("\n");
-
     pthread_t pro[prodNum],con[conNum];
     pthread_mutex_init(&mutex, NULL);
     sem_init(&empty,0,10);
