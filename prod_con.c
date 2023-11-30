@@ -23,21 +23,19 @@ void *producer(void *param)
         int item = rand() % 50;
         //printf("%d",count);
         //printf(" %d ",sem_wait(&empty));
-        errno=0;
         int check = sem_wait(&empty);
-        //printf("prod check val = %d\n",check);
-        if (check==0){
-            printf("Full\n");
-        } else if (check > 0){
-            printf("yippe\n");
-        } else if (check < 0) {
-            printf("ERROR\n");
-        } else {
-            printf("BAD NEWS\n");
-        }
-        printf("sem_open() failed.  errno:%d\n", errno);
-
         pthread_mutex_lock(&mutex);
+        //printf("prod check val = %d\n",check);
+        errno=0;
+        if (check==0){
+            printf("prod Full\n");
+        } else if (check > 0){
+            printf("prod yippe\n");
+        } else if (check < 0) {
+            printf("PROD ERROR\n");
+        }
+        printf("prod errno: %d\n", errno);
+
         buffer[count] = item;
         count++;
         printf("Producer %d: Insert Item %d at buffer[%d]\n", *((int *)param),item,count);
@@ -55,14 +53,16 @@ void *consumer(void *param)
         int item;
         int check = sem_wait(&full);
         //printf("con check val = %d\n",check);
-        if (check == 0){
-            printf("Full\n");
-        } else if (check > 0){
-            printf("yippe\n");
-        } else {
-            printf("ERROR");
-        }
         pthread_mutex_lock(&mutex);
+        if (check == 0){
+            printf("con Full\n");
+        } else if (check > 0){
+            printf("con yippe\n");
+        } else if (check < 0){
+            printf("CON BAD NEWS\n");
+        }
+        printf("prod errno: %d\n", errno);
+
         item = buffer[count - 1];
         count--;
         //out = (out+1)%buffer_size;
