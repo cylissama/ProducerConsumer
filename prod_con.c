@@ -2,45 +2,53 @@
 #include <semaphore.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
+#include <unistd.h>
+#include <string.h>
 
-/*
-This program provides a possible solution for producer-consumer problem using mutex and semaphore.
-I have used 5 producers and 5 consumers to demonstrate the solution. You can always play with these values.
-*/
+//int *buffer;
 int prodNum, conNum, buffer_size, limit;
-
 sem_t empty;
 sem_t full;
-int in = 0;
-int out = 0;
-int buffer[];
+int count = 0;
+int buffer[10];
 pthread_mutex_t mutex;
 
 void *producer(void *param)
-{   
-    int item;
-    item = rand() % 50; // Produce an random item
-    sem_wait(&empty);
-    pthread_mutex_lock(&mutex);
-    buffer[in] = item;
-    //printf("in = %d item = %d\n",in,item);
-    printf("Producer %d: Insert Item %d at buffer[%d]\n", *((int *)param),buffer[in],in);
-    //in = (in+1)%buffer_size;
-    in++;
-    pthread_mutex_unlock(&mutex);
-    sem_post(&full);
+{  
+    while(1) {
+        //make 50 limit
+        int item = rand() % 50;
+        printf("%d",count);
+        sem_wait(&empty);
+        pthread_mutex_lock(&mutex);
+        buffer[count] = item;
+        count++;
+        printf("Producer %d: Insert Item %d at buffer[%d]\n", *((int *)param),item,count);
+        //in = (in+1)%buffer_size;
+        pthread_mutex_unlock(&mutex);
+        sem_post(&full);
+        sleep(1);
+
+        //return NULL;
+    }
 }
 void *consumer(void *param)
 {   
-    sem_wait(&full);
-    pthread_mutex_lock(&mutex);
-    int item = buffer[out];
-    //printf("out = %d item = %d\n",out,item);
-    printf("Consumer %d: Remove Item %d from buffer [%d]\n",*((int *)param),item, out);
-    //out = (out+1)%buffer_size;
-    out++;
-    pthread_mutex_unlock(&mutex);
-    sem_post(&empty);
+    while(1) {
+        int item;
+        sem_wait(&full);
+        pthread_mutex_lock(&mutex);
+        item = buffer[count - 1];
+        count--;
+        //out = (out+1)%buffer_size;
+        pthread_mutex_unlock(&mutex);
+        sem_post(&empty);
+        printf("Consumer %d: Remove Item %d from buffer [%d]\n",*((int *)param),item, count);
+
+        sleep(2);
+        //return NULL;
+    }
 }
 
 struct data {
@@ -49,11 +57,18 @@ struct data {
     int a[];
 };
 
-int main()
+int main(int argc, char *argv[])
 {   
-    printf("Buffer Size: ");
-    scanf("%d", &buffer_size);
-    buffer[buffer_size];
+    srand(time(NULL));
+
+    if (argc == 3) {
+        buffer_size = argv[0];
+        printf("worked %d %d %d %d",argv[0],argv[1],argv[2],argv[3]);
+    }
+
+    // printf("Buffer Size: ");
+    // scanf("%d", &buffer_size);
+    //buffer = (int *)malloc(buffer_size * sizeof(int)); // Allocate memory for the buffer
 
     printf("Num of Producers: ");
     scanf("%d", &prodNum);
@@ -61,13 +76,14 @@ int main()
     printf("Num of Consumers: ");
     scanf("%d", &conNum);
 
+    //currently does nothing
     printf("Upper Limit: ");
     scanf("%d", &limit);
     printf("\n");
 
     pthread_t pro[prodNum],con[conNum];
     pthread_mutex_init(&mutex, NULL);
-    sem_init(&empty,0,buffer_size);
+    sem_init(&empty,0,10);
     sem_init(&full,0,0);
 
     struct data *s1 = (struct data *) malloc(sizeof(struct data));
@@ -75,25 +91,35 @@ int main()
     s1->two = '2';
 
     s1->a;
-    for(int i = 0; i < limit; i++) {
+
+    int higher;
+    if(prodNum > conNum) {
+        higher = prodNum;
+    } else {
+        higher = conNum;
+    }
+
+    for(int i = 0; i < higher; i++) {
         s1->a[i] = i;
         //printf("%d\n",i);
     }
 
     for(int i = 0; i < prodNum; i++) {
+        //printf("Creating producer #%d\n",i);
         pthread_create(&pro[i], NULL, (void *)producer, (void *)&s1->a[i]);
     }
-    for(int i = 0; i < conNum; i++) {
-        pthread_create(&con[i], NULL, (void *)consumer, (void *)&s1->a[i]);
+    for(int j = 0; j < conNum; j++) {
+        //printf("Creating consumer #%d\n",j);
+        pthread_create(&con[j], NULL, (void *)consumer, (void *)&s1->a[j]);
     }
-
+    
     for(int i = 0; i < prodNum; i++) {
         pthread_join(pro[i], NULL);
     }
-    for(int i = 0; i < conNum; i++) {
-        pthread_join(con[i], NULL);
+    for(int j = 0; j < conNum; j++) {
+        pthread_join(con[j], NULL);
     }
-
+    
     pthread_mutex_destroy(&mutex);
     sem_destroy(&empty);
     sem_destroy(&full);
