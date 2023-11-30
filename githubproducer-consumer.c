@@ -1,78 +1,99 @@
-#include <pthread.h>
-#include <semaphore.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <pthread.h>
+#include <unistd.h>
+#include <time.h>
+#include <semaphore.h>
 
-/*
-This program provides a possible solution for producer-consumer problem using mutex and semaphore.
-I have used 5 producers and 5 consumers to demonstrate the solution. You can always play with these values.
-*/
+sem_t semEmpty;
+sem_t semFull;
+pthread_mutex_t mutexBuffer;
 
-#define MaxItems 5 // Maximum items a producer can produce or a consumer can consume
-#define BufferSize 5 // Size of the buffer
+int* buffer; // Dynamically allocated buffer
+int bufferSize; // Buffer size
+int count = 0;
+int limit = 0;
+int number = 0;
 
-sem_t empty;
-sem_t full;
-int in = 0;
-int out = 0;
-int buffer[BufferSize];
-pthread_mutex_t mutex;
+void* producer(void* args) {
+    while (1) {
+        if(number >= limit)
+            printf("End");
+        int x = number++; // Generate random number
+        sleep(1);
 
-void *producer(void *pno)
-{   
-    int item;
-    for(int i = 0; i < MaxItems; i++) {
-        item = rand(); // Produce an random item
-        sem_wait(&empty);
-        pthread_mutex_lock(&mutex);
-        buffer[in] = item;
-        printf("Producer %d: Insert Item %d at %d\n", *((int *)pno),buffer[in],in);
-        in = (in+1)%BufferSize;
-        pthread_mutex_unlock(&mutex);
-        sem_post(&full);
-    }
-}
-void *consumer(void *cno)
-{   
-    for(int i = 0; i < MaxItems; i++) {
-        sem_wait(&full);
-        pthread_mutex_lock(&mutex);
-        int item = buffer[out];
-        printf("Consumer %d: Remove Item %d from %d\n",*((int *)cno),item, out);
-        out = (out+1)%BufferSize;
-        pthread_mutex_unlock(&mutex);
-        sem_post(&empty);
+        sem_wait(&semEmpty);
+        pthread_mutex_lock(&mutexBuffer);
+        buffer[count] = x;
+        count++;
+        pthread_mutex_unlock(&mutexBuffer);
+        sem_post(&semFull);
     }
 }
 
-int main()
-{   
+void* consumer(void* arg) {
+    int consumer_id = *((int*)arg); // Extract unique consumer ID
 
-    pthread_t pro[5],con[5];
-    pthread_mutex_init(&mutex, NULL);
-    sem_init(&empty,0,BufferSize);
-    sem_init(&full,0,0);
+    while (1) {
+        int y;
 
-    int a[5] = {1,2,3,4,5}; //Just used for numbering the producer and consumer
+        sem_wait(&semFull);
+        pthread_mutex_lock(&mutexBuffer);
+        y = buffer[count - 1];
+        count--;
+        pthread_mutex_unlock(&mutexBuffer);
+        sem_post(&semEmpty);
 
-    for(int i = 0; i < 5; i++) {
-        pthread_create(&pro[i], NULL, (void *)producer, (void *)&a[i]);
+        printf("%d, %d\n", y, consumer_id);
+        sleep(1);
     }
-    for(int i = 0; i < 5; i++) {
-        pthread_create(&con[i], NULL, (void *)consumer, (void *)&a[i]);
+}
+
+int main(int argc, char* argv[]) {
+    if (argc != 5) {
+        printf("Usage: %s <buffer_size> <num_producers> <num_consumers> <limit>\n", argv[0]);
+        return 1;
     }
 
-    for(int i = 0; i < 5; i++) {
-        pthread_join(pro[i], NULL);
-    }
-    for(int i = 0; i < 5; i++) {
-        pthread_join(con[i], NULL);
+    bufferSize = atoi(argv[1]); // Get buffer size from command line
+    buffer = (int*)malloc(bufferSize * sizeof(int)); // Allocate memory for buffer
+
+    int numProducers = atoi(argv[2]);
+    int numConsumers = atoi(argv[3]);
+    limit = atoi(argv[4]);
+
+    srand(time(NULL));
+    pthread_t th[numProducers + numConsumers];
+    pthread_mutex_init(&mutexBuffer, NULL);
+    sem_init(&semEmpty, 0, bufferSize);
+    sem_init(&semFull, 0, 0);
+
+    int i;
+    for (i = 0; i < numProducers; i++) {
+        if (pthread_create(&th[i], NULL, &producer, NULL) != 0) {
+            perror("Failed to create producer thread");
+        }
     }
 
-    pthread_mutex_destroy(&mutex);
-    sem_destroy(&empty);
-    sem_destroy(&full);
+    int consumer_ids[numConsumers];
+    for (int j = 0; j < numConsumers; j++) {
+        consumer_ids[j] = j; // Assign unique IDs to consumers
+        if (pthread_create(&th[i + j], NULL, &consumer, &consumer_ids[j]) != 0) {
+            perror("Failed to create consumer thread");
+        }
+    }
+
+    for (i = 0; i < numProducers + numConsumers; i++) {
+        if (pthread_join(th[i], NULL) != 0) {
+            perror("Failed to join thread");
+        }
+    }
+
+    sem_destroy(&semEmpty);
+    sem_destroy(&semFull);
+    pthread_mutex_destroy(&mutexBuffer);
+    free(buffer);
 
     return 0;
-    
 }

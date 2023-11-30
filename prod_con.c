@@ -10,10 +10,10 @@
 
 //int *buffer;
 int prodNum, conNum, buffer_size, limit;
-sem_t *empty;
-sem_t *full;
+sem_t empty;
+sem_t full;
 int count = 0;
-int buffer[5];
+int buffer[4];
 pthread_mutex_t mutex;
 
 void *producer(void *param)
@@ -28,13 +28,13 @@ void *producer(void *param)
         //printf("prod check val = %d\n",check);
         errno=0;
         if (check==0){
-            printf("prod Full\n");
+            printf("prod Full %d\n",check);
         } else if (check > 0){
-            printf("prod yippe\n");
+            printf("prod yippe %d\n",check);
         } else if (check < 0) {
-            printf("PROD ERROR\n");
+            printf("PROD ERROR %d\n",check);
         }
-        printf("prod errno: %d\n", errno);
+        printf("prod errno: %d check: %d\n", errno,check);
 
         buffer[count] = item;
         count++;
@@ -42,9 +42,8 @@ void *producer(void *param)
         //in = (in+1)%buffer_size;
         pthread_mutex_unlock(&mutex);
         sem_post(&full);
-        sleep(1);
 
-        //return NULL;
+        sleep(1);
     }
 }
 void *consumer(void *param)
@@ -55,13 +54,13 @@ void *consumer(void *param)
         //printf("con check val = %d\n",check);
         pthread_mutex_lock(&mutex);
         if (check == 0){
-            printf("con Full\n");
+            printf("con Full %d\n",check);
         } else if (check > 0){
-            printf("con yippe\n");
+            printf("con yippe %d\n",check);
         } else if (check < 0){
-            printf("CON BAD NEWS\n");
+            printf("CON BAD NEWS %d\n",check);
         }
-        printf("prod errno: %d\n", errno);
+        printf("prod errno: %d check: %d\n", errno,check);
 
         item = buffer[count - 1];
         count--;
@@ -71,7 +70,6 @@ void *consumer(void *param)
         printf("Consumer %d: Remove Item %d from buffer [%d]\n",*((int *)param),item, count);
 
         sleep(2);
-        //return NULL;
     }
 }
 
@@ -110,14 +108,13 @@ int main(int argc, char *argv[])
     }
     pthread_t pro[prodNum],con[conNum];
     pthread_mutex_init(&mutex, NULL);
-    sem_init(&empty,0,10);
+    int nnn = 4;
+    sem_init(&empty,0,nnn);
     sem_init(&full,0,0);
 
     struct data *s1 = (struct data *) malloc(sizeof(struct data));
     s1->one = 1;
     s1->two = '2';
-
-    s1->a;
 
     int higher;
     if(prodNum > conNum) {
